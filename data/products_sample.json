@@ -1,0 +1,53 @@
+[
+  {
+    "parent_asin": "P0001",
+    "title": "Men's Quick-Dry Swim Shorts",
+    "features": [
+      "Quick-dry fabric",
+      "Elastic waistband",
+      "Mesh lining"
+    ],
+    "categories": [
+      "Clothing",
+      "Men",
+      "Swimwear"
+    ],
+    "description": "Comfortable quick-dry swim shorts perfect for beach and pool.",
+    "price": 29.99,
+    "average_rating": 4.4
+  },
+  {
+    "parent_asin": "P0002",
+    "title": "Women's Breathable Beach Dress",
+    "features": [
+      "Lightweight",
+      "Breathable cotton",
+      "Flowy fit"
+    ],
+    "categories": [
+      "Clothing",
+      "Women",
+      "Dresses"
+    ],
+    "description": "A breezy summer dress ideal for beach days and casual outings.",
+    "price": 39.99,
+    "average_rating": 4.6
+  },
+  {
+    "parent_asin": "P0003",
+    "title": "Waterproof Insulated Winter Jacket",
+    "features": [
+      "Waterproof shell",
+      "Thermal insulation",
+      "Hooded"
+    ],
+    "categories": [
+      "Clothing",
+      "Unisex",
+      "Jackets"
+    ],
+    "description": "Warm and waterproof jacket for cold and wet weather.",
+    "price": 129.99,
+    "average_rating": 4.7
+  }
+]

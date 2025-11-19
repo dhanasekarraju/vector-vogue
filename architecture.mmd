@@ -1,0 +1,12 @@
+flowchart LR
+  A[Raw Dataset (data/products.json)] --> B[Preprocessing]
+  B --> C[Concatenate text (title + features + categories + desc)]
+  C --> D[Embeddings Service (OpenAI or local sentence-transformers)]
+  D --> E[FAISS Vector DB (local index)]
+  E --> F[Semantic Search (top-K)]
+  F --> G[Optional LLM Re-ranker]
+  G --> H[FastAPI /recommend endpoint -> JSON]
+  H --> I[Optional React Frontend / CLI]
+  style D fill:#dff7df,stroke:#333,stroke-width:1px
+  style E fill:#fef3d7,stroke:#333,stroke-width:1px
+  style G fill:#e7f0ff,stroke:#333,stroke-width:1px
