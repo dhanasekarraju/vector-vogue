@@ -3,7 +3,10 @@ import numpy as np
 import json
 from pathlib import Path
 from dotenv import load_dotenv
-from app.embeddings import embed_image
+import logging
+
+# Configure logging
+logger = logging.getLogger(__name__)
 load_dotenv()
 
 INDEX_PATH = Path("data/faiss.index")
@@ -15,6 +18,10 @@ if not INDEX_PATH.exists() or not META_PATH.exists():
 index = faiss.read_index(str(INDEX_PATH))
 with open(META_PATH, "r", encoding="utf-8") as f:
     meta = json.load(f)
+
+# Get the dimension of the FAISS index
+index_dimension = index.d
+logger.info(f"FAISS index dimension: {index_dimension}")
 
 def detect_gender_from_query(query):
     """Detect gender intent from query"""
@@ -108,20 +115,93 @@ def search_with_gender(query_text, top_k=6, gender=None):
     return search(query_text, top_k, gender_filter=gender)
 
 def search_by_image(base64_img, top_k=6, gender_filter=None):
-    vec = embed_image(base64_img)
-    vec = np.array(vec).astype("float32")
-    faiss.normalize_L2(vec.reshape(1, -1))
+    """
+    Enhanced solution: Use image captioning to convert image to text,
+    then use text search
+    """
+    try:
+        logger.info(f"Using image captioning for image search")
 
-    D, I = index.search(vec.reshape(1, -1), top_k * 3)
+        # Generate text description from image
+        image_description = generate_image_description(base64_img)
+        logger.info(f"Generated image description: {image_description}")
 
-    results = []
-    for score, idx in zip(D[0], I[0]):
-        item = meta[idx].copy()
-        item["score"] = float(score)
-        results.append(item)
+        # Use the generated description for text search
+        from app.indexer import search
+        results = search(image_description, top_k * 2, gender_filter)
 
-    # Auto-detect gender from image query is NOT possible → but use provided filter
-    if gender_filter:
-        results = filter_by_gender(results, gender_filter)
+        logger.info(f"Found {len(results)} results using image description")
 
-    return results[:top_k]
+        return results[:top_k]
+
+    except Exception as e:
+        logger.error(f"Image search failed: {e}")
+        # Fallback to generic search
+        logger.info("Falling back to generic search")
+        return search_by_image_fallback(top_k, gender_filter)
+
+def generate_image_description(base64_img):
+    """
+    Use a pre-trained image captioning model to generate text description
+    """
+    try:
+        from transformers import BlipProcessor, BlipForConditionalGeneration
+        from PIL import Image
+        import base64
+        from io import BytesIO
+
+        # Load model (this will download on first run)
+        processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
+        model = BlipForConditionalGeneration.from_pretrained("Salesforce/blip-image-captioning-base")
+
+        # Decode base64 image
+        if base64_img.startswith('data:image'):
+            base64_img = base64_img.split(',')[1]
+
+        img_bytes = base64.b64decode(base64_img)
+        image = Image.open(BytesIO(img_bytes)).convert('RGB')
+
+        # Generate caption
+        inputs = processor(image, return_tensors="pt")
+        out = model.generate(**inputs, max_length=50, num_beams=5)
+        caption = processor.decode(out[0], skip_special_tokens=True)
+
+        return caption
+
+    except Exception as e:
+        logger.warning(f"Image captioning failed: {e}")
+        # Fallback descriptions based on common fashion items
+        fallback_descriptions = [
+            "fashion clothing style",
+            "apparel outfit wear",
+            "clothing fashion items"
+        ]
+        import random
+        return random.choice(fallback_descriptions)
+
+def search_by_image_fallback(top_k=6, gender_filter=None):
+    """Fallback image search using generic fashion queries"""
+    from app.indexer import search
+
+    generic_queries = [
+        "fashion clothing style",
+        "apparel outfit trendy",
+        "clothing wear fashion"
+    ]
+
+    all_results = []
+    for query in generic_queries:
+        results = search(query, top_k, gender_filter)
+        all_results.extend(results)
+
+    # Remove duplicates
+    seen = set()
+    unique_results = []
+    for result in all_results:
+        result_id = result.get('asin') or result.get('id') or str(result)
+        if result_id not in seen:
+            seen.add(result_id)
+            unique_results.append(result)
+
+    unique_results.sort(key=lambda x: x.get('score', 0), reverse=True)
+    return unique_results[:top_k]

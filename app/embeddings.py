@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+import traceback
 from functools import lru_cache
 from typing import List
 
@@ -33,12 +34,23 @@ class EnhancedSentenceTransformer:
                     logger.info(f"Loading SentenceTransformer model: {cls._model_name}")
                     start_time = time.time()
 
-                    # Model configuration for optimal performance
+                    # Model configuration for optimal performance with fast tokenizer
                     cls._model = SentenceTransformer(
                         cls._model_name,
                         device='cpu',  # Use 'cuda' if GPU available
                         use_auth_token=False
                     )
+
+                    # Force fast tokenizer to avoid warnings
+                    try:
+                        from transformers import AutoTokenizer
+                        cls._model.tokenizer = AutoTokenizer.from_pretrained(
+                            cls._model_name,
+                            use_fast=True,
+                            local_files_only=False
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not load fast tokenizer: {e}")
 
                     load_time = time.time() - start_time
                     logger.info(
@@ -171,15 +183,31 @@ class ImageEmbeddingModel:
                 if cls._model is None:
                     logger.info(f"Loading Image CLIP model: {cls._model_name}")
                     cls._model = SentenceTransformer(cls._model_name)
+
+                    # Force fast tokenizer for CLIP model as well
+                    try:
+                        from transformers import AutoTokenizer
+                        cls._model.tokenizer = AutoTokenizer.from_pretrained(
+                            "sentence-transformers/clip-ViT-B-32",
+                            use_fast=True,
+                            local_files_only=False
+                        )
+                    except Exception as e:
+                        logger.warning(f"Could not load fast tokenizer for CLIP: {e}")
         return cls._model
 
     @staticmethod
     def decode_base64_image(base64_str):
         try:
+            # Handle base64 string (remove data URL prefix if present)
+            if base64_str.startswith('data:image'):
+                base64_str = base64_str.split(',')[1]
+
             img_bytes = base64.b64decode(base64_str)
             img = Image.open(BytesIO(img_bytes)).convert("RGB")
             return img
         except Exception as e:
+            logger.error(f"Failed to decode base64 image: {e}")
             raise ValueError(f"Invalid image data: {e}")
 
 
@@ -354,16 +382,40 @@ def embed_text(text: str, normalize: bool = True) -> List[float]:
 
 
 def embed_image(base64_image: str, normalize: bool = True) -> List[float]:
-    model = ImageEmbeddingModel.get_model()
+    """
+    Enhanced image embedding with better error handling
+    """
+    try:
+        model = ImageEmbeddingModel.get_model()
 
-    img = ImageEmbeddingModel.decode_base64_image(base64_image)
+        # Clean the base64 string
+        if base64_image.startswith('data:image'):
+            # Remove data URL prefix
+            base64_image = base64_image.split(',')[1]
 
-    embedding = model.encode([img], convert_to_numpy=True)[0]
+        # Add padding if needed (base64 strings should be divisible by 4)
+        padding = len(base64_image) % 4
+        if padding:
+            base64_image += '=' * (4 - padding)
 
-    if normalize:
-        embedding = embedding / np.linalg.norm(embedding)
+        logger.info(f"Decoding base64 image, length: {len(base64_image)}")
 
-    return embedding.tolist()
+        img = ImageEmbeddingModel.decode_base64_image(base64_image)
+        logger.info(f"Image decoded successfully: {img.size}")
+
+        # Encode the image
+        embedding = model.encode([img], convert_to_numpy=True, show_progress_bar=False)[0]
+        logger.info(f"Image embedding generated: {len(embedding)} dimensions")
+
+        if normalize:
+            embedding = embedding / np.linalg.norm(embedding)
+
+        return embedding.tolist()
+
+    except Exception as e:
+        logger.error(f"Image embedding failed: {e}")
+        logger.error(traceback.format_exc())
+        raise ValueError(f"Failed to process image: {str(e)}")
 
 
 # Performance monitoring endpoint

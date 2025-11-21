@@ -16,8 +16,29 @@ def get_model():
     global _model
     if _model is None:
         logger.info("Loading Cross-Encoder model...")
-        _model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-        logger.info("Model loaded successfully!")
+        try:
+            # Load with fast tokenizer explicitly
+            from transformers import AutoTokenizer
+
+            # First load the tokenizer with use_fast=True
+            tokenizer = AutoTokenizer.from_pretrained(
+                'cross-encoder/ms-marco-MiniLM-L-6-v2',
+                use_fast=True,
+                local_files_only=False
+            )
+
+            # Then load the model with the fast tokenizer
+            _model = CrossEncoder(
+                'cross-encoder/ms-marco-MiniLM-L-6-v2',
+                tokenizer=tokenizer
+            )
+            logger.info("Model loaded successfully with fast tokenizer!")
+
+        except Exception as e:
+            logger.warning(f"Failed to load with fast tokenizer, falling back: {e}")
+            _model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+            logger.info("Model loaded with default tokenizer")
+
     return _model
 
 def extract_product_features(product):
