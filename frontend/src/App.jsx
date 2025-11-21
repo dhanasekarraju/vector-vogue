@@ -7,6 +7,45 @@ export default function App() {
     const [rerank, setRerank] = useState(false)
     const [searchTime, setSearchTime] = useState(0)
     const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
+    const [isDarkMode, setIsDarkMode] = useState(true)
+
+    // Theme colors
+    const theme = {
+        dark: {
+            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+            surface: 'rgba(30, 41, 59, 0.8)',
+            surfaceSolid: 'rgba(15, 23, 42, 0.8)',
+            textPrimary: '#ffffff',
+            textSecondary: '#cbd5e1',
+            textTertiary: '#94a3b8',
+            border: 'rgba(255, 255, 255, 0.1)',
+            accent: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            accentSolid: 'rgba(102, 126, 234, 0.2)',
+            success: 'rgba(34, 197, 94, 0.2)',
+            successBorder: 'rgba(34, 197, 94, 0.3)',
+            cardBackground: 'rgba(30, 41, 59, 0.6)',
+            inputBackground: 'rgba(15, 23, 42, 0.8)',
+            gradientHeader: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)'
+        },
+        light: {
+            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)',
+            surface: 'rgba(255, 255, 255, 0.9)',
+            surfaceSolid: 'rgba(248, 250, 252, 0.9)',
+            textPrimary: '#1e293b',
+            textSecondary: '#475569',
+            textTertiary: '#64748b',
+            border: 'rgba(30, 41, 59, 0.1)',
+            accent: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+            accentSolid: 'rgba(102, 126, 234, 0.1)',
+            success: 'rgba(34, 197, 94, 0.1)',
+            successBorder: 'rgba(34, 197, 94, 0.3)',
+            cardBackground: 'rgba(255, 255, 255, 0.8)',
+            inputBackground: 'rgba(248, 250, 252, 0.9)',
+            gradientHeader: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)'
+        }
+    }
+
+    const currentTheme = isDarkMode ? theme.dark : theme.light
 
     // Handle window resize
     useEffect(() => {
@@ -69,27 +108,63 @@ export default function App() {
         setTimeout(() => submit(), 100)
     }
 
+    const toggleTheme = () => {
+        setIsDarkMode(!isDarkMode)
+    }
+
     return (
         <div style={{
             fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
             padding: '0',
-            backgroundColor: '#0f172a',
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
+            background: currentTheme.background,
             minHeight: '100vh',
-            color: 'white',
-            overflowX: 'hidden', // Prevent horizontal scroll
+            color: currentTheme.textPrimary,
+            overflowX: 'hidden',
             width: '100%',
-            maxWidth: '100vw' // Ensure it doesn't overflow viewport
+            maxWidth: '100vw',
+            transition: 'all 0.3s ease'
         }}>
-            {/* Enhanced Header - FIXED WIDTH */}
+            {/* Enhanced Header */}
             <div style={{
-                background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)',
+                background: currentTheme.gradientHeader,
                 padding: isMobile ? '40px 16px 30px' : '60px 20px 40px',
                 textAlign: 'center',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
+                borderBottom: `1px solid ${currentTheme.border}`,
                 width: '100%',
-                boxSizing: 'border-box'
+                boxSizing: 'border-box',
+                position: 'relative'
             }}>
+                {/* Theme Toggle Button */}
+                <button
+                    onClick={toggleTheme}
+                    style={{
+                        position: 'absolute',
+                        top: isMobile ? '16px' : '20px',
+                        right: isMobile ? '16px' : '20px',
+                        background: currentTheme.surface,
+                        border: `1px solid ${currentTheme.border}`,
+                        borderRadius: '50%',
+                        width: isMobile ? '44px' : '48px',
+                        height: isMobile ? '44px' : '48px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: isMobile ? '1.2rem' : '1.3rem',
+                        transition: 'all 0.3s ease',
+                        backdropFilter: 'blur(10px)',
+                        color: currentTheme.textPrimary
+                    }}
+                    onMouseEnter={(e) => {
+                        e.target.style.transform = 'rotate(15deg) scale(1.1)'
+                    }}
+                    onMouseLeave={(e) => {
+                        e.target.style.transform = 'rotate(0) scale(1)'
+                    }}
+                >
+                    {isDarkMode ? '☀️' : '🌙'}
+                </button>
+
                 <div style={{
                     maxWidth: '1200px',
                     margin: '0 auto',
@@ -98,11 +173,11 @@ export default function App() {
                     <h1 style={{
                         fontSize: isMobile ? '2.5rem' : isTablet ? '3rem' : '3.5rem',
                         fontWeight: 800,
-                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        background: currentTheme.accent,
                         WebkitBackgroundClip: 'text',
                         WebkitTextFillColor: 'transparent',
                         marginBottom: isMobile ? '12px' : '16px',
-                        textShadow: '0 4px 20px rgba(102, 126, 234, 0.3)',
+                        textShadow: isDarkMode ? '0 4px 20px rgba(102, 126, 234, 0.3)' : '0 2px 10px rgba(102, 126, 234, 0.2)',
                         lineHeight: 1.2,
                         wordWrap: 'break-word'
                     }}>
@@ -110,7 +185,7 @@ export default function App() {
                     </h1>
                     <p style={{
                         fontSize: isMobile ? '1.1rem' : '1.3rem',
-                        color: '#cbd5e1',
+                        color: currentTheme.textSecondary,
                         marginBottom: isMobile ? '8px' : '12px',
                         fontWeight: 300,
                         lineHeight: 1.4
@@ -125,24 +200,24 @@ export default function App() {
                             justifyContent: 'center',
                             alignItems: 'center',
                             fontSize: isMobile ? '0.8rem' : '0.9rem',
-                            color: '#94a3b8',
+                            color: currentTheme.textTertiary,
                             flexWrap: 'wrap'
                         }}>
                             <span style={{
-                                background: 'rgba(102, 126, 234, 0.2)',
+                                background: currentTheme.accentSolid,
                                 padding: '6px 12px',
                                 borderRadius: '20px',
-                                border: '1px solid rgba(102, 126, 234, 0.3)',
+                                border: `1px solid ${currentTheme.border}`,
                                 whiteSpace: 'nowrap'
                             }}>
                                 📊 {results.length} products
                             </span>
                             {searchTime > 0 && (
                                 <span style={{
-                                    background: 'rgba(34, 197, 94, 0.2)',
+                                    background: currentTheme.success,
                                     padding: '6px 12px',
                                     borderRadius: '20px',
-                                    border: '1px solid rgba(34, 197, 94, 0.3)',
+                                    border: `1px solid ${currentTheme.successBorder}`,
                                     whiteSpace: 'nowrap'
                                 }}>
                                     ⚡ {searchTime}ms
@@ -153,25 +228,27 @@ export default function App() {
                 </div>
             </div>
 
-            {/* FIXED Search Section - PROPERLY CENTERED */}
+            {/* Search Section */}
             <div style={{
                 width: '100%',
                 padding: isMobile ? '0 16px' : '0 20px',
                 boxSizing: 'border-box',
                 margin: isMobile ? '-20px auto 40px' : '-30px auto 50px',
-                maxWidth: '800px' // Fixed max width
+                maxWidth: '800px'
             }}>
                 <div style={{
-                    background: 'rgba(30, 41, 59, 0.8)',
+                    background: currentTheme.surface,
                     backdropFilter: 'blur(20px)',
                     padding: isMobile ? '24px 20px' : '32px',
                     borderRadius: isMobile ? '16px' : '20px',
-                    border: '1px solid rgba(255, 255, 255, 0.1)',
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)',
+                    border: `1px solid ${currentTheme.border}`,
+                    boxShadow: isDarkMode
+                        ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+                        : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
                     width: '100%',
                     boxSizing: 'border-box'
                 }}>
-                    {/* Search Input Group - FIXED LAYOUT */}
+                    {/* Search Input Group */}
                     <div style={{
                         display: 'flex',
                         flexDirection: isMobile ? 'column' : 'row',
@@ -180,7 +257,7 @@ export default function App() {
                         alignItems: 'stretch',
                         width: '100%'
                     }}>
-                        {/* Input Container - FIXED */}
+                        {/* Input Container */}
                         <div style={{
                             flex: 1,
                             position: 'relative',
@@ -193,7 +270,7 @@ export default function App() {
                                 left: isMobile ? '16px' : '20px',
                                 zIndex: 2,
                                 fontSize: isMobile ? '1.1rem' : '1.2rem',
-                                color: '#64748b'
+                                color: currentTheme.textTertiary
                             }}>
                                 🔍
                             </div>
@@ -203,11 +280,11 @@ export default function App() {
                                     padding: isMobile ? '16px 16px 16px 44px' : '18px 18px 18px 50px',
                                     fontSize: isMobile ? '14px' : '16px',
                                     borderRadius: isMobile ? '12px' : '14px',
-                                    border: '2px solid rgba(102, 126, 234, 0.3)',
+                                    border: `2px solid ${currentTheme.border}`,
                                     outline: 'none',
                                     transition: 'all 0.3s ease',
-                                    background: 'rgba(15, 23, 42, 0.8)',
-                                    color: 'white',
+                                    background: currentTheme.inputBackground,
+                                    color: currentTheme.textPrimary,
                                     backdropFilter: 'blur(10px)',
                                     boxSizing: 'border-box'
                                 }}
@@ -219,15 +296,15 @@ export default function App() {
                             />
                         </div>
 
-                        {/* Search Button - FIXED */}
+                        {/* Search Button */}
                         <button
                             onClick={submit}
                             disabled={loading || !q.trim()}
                             style={{
                                 padding: isMobile ? '0 20px' : '0 28px',
                                 background: loading || !q.trim() ?
-                                    'linear-gradient(135deg, #475569 0%, #64748b 100%)' :
-                                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                    (isDarkMode ? 'linear-gradient(135deg, #475569 0%, #64748b 100%)' : 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)') :
+                                    currentTheme.accent,
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: isMobile ? '12px' : '14px',
@@ -241,7 +318,8 @@ export default function App() {
                                 alignItems: 'center',
                                 justifyContent: 'center',
                                 gap: '8px',
-                                boxShadow: loading || !q.trim() ? 'none' : '0 8px 25px rgba(102, 126, 234, 0.4)',
+                                boxShadow: loading || !q.trim() ? 'none' :
+                                    (isDarkMode ? '0 8px 25px rgba(102, 126, 234, 0.4)' : '0 8px 25px rgba(102, 126, 234, 0.3)'),
                                 position: 'relative',
                                 overflow: 'hidden',
                                 whiteSpace: 'nowrap',
@@ -250,12 +328,15 @@ export default function App() {
                             onMouseEnter={(e) => {
                                 if (!loading && q.trim()) {
                                     e.target.style.transform = 'translateY(-2px)'
-                                    e.target.style.boxShadow = '0 12px 30px rgba(102, 126, 234, 0.6)'
+                                    e.target.style.boxShadow = isDarkMode
+                                        ? '0 12px 30px rgba(102, 126, 234, 0.6)'
+                                        : '0 12px 30px rgba(102, 126, 234, 0.4)'
                                 }
                             }}
                             onMouseLeave={(e) => {
                                 e.target.style.transform = 'translateY(0)'
-                                e.target.style.boxShadow = loading || !q.trim() ? 'none' : '0 8px 25px rgba(102, 126, 234, 0.4)'
+                                e.target.style.boxShadow = loading || !q.trim() ? 'none' :
+                                    (isDarkMode ? '0 8px 25px rgba(102, 126, 234, 0.4)' : '0 8px 25px rgba(102, 126, 234, 0.3)')
                             }}
                         >
                             {loading ? (
@@ -278,7 +359,7 @@ export default function App() {
                         </button>
                     </div>
 
-                    {/* Rerank Toggle - FIXED */}
+                    {/* Rerank Toggle */}
                     <div style={{
                         display: 'flex',
                         flexDirection: isMobile ? 'column' : 'row',
@@ -293,13 +374,13 @@ export default function App() {
                             alignItems: 'center',
                             gap: isMobile ? '10px' : '12px',
                             cursor: 'pointer',
-                            color: '#cbd5e1',
+                            color: currentTheme.textSecondary,
                             fontSize: isMobile ? '14px' : '15px',
                             fontWeight: 500,
                             padding: isMobile ? '10px 16px' : '12px 20px',
-                            background: 'rgba(15, 23, 42, 0.6)',
+                            background: currentTheme.inputBackground,
                             borderRadius: isMobile ? '10px' : '12px',
-                            border: '1px solid rgba(255, 255, 255, 0.1)',
+                            border: `1px solid ${currentTheme.border}`,
                             width: isMobile ? '100%' : 'auto',
                             justifyContent: isMobile ? 'center' : 'flex-start',
                             boxSizing: 'border-box'
@@ -308,12 +389,10 @@ export default function App() {
                                 position: 'relative',
                                 width: isMobile ? '44px' : '48px',
                                 height: isMobile ? '24px' : '26px',
-                                background: rerank ?
-                                    'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' :
-                                    'rgba(71, 85, 105, 0.6)',
+                                background: rerank ? currentTheme.accent : currentTheme.textTertiary,
                                 borderRadius: isMobile ? '12px' : '13px',
                                 transition: 'all 0.3s ease',
-                                boxShadow: rerank ? '0 4px 15px rgba(102, 126, 234, 0.4)' : 'none'
+                                boxShadow: rerank ? (isDarkMode ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 4px 15px rgba(102, 126, 234, 0.3)') : 'none'
                             }}>
                                 <div style={{
                                     position: 'absolute',
@@ -339,9 +418,9 @@ export default function App() {
                             </span>
                         </label>
                         <div style={{
-                            background: 'linear-gradient(135deg, rgba(34, 197, 94, 0.2) 0%, rgba(21, 128, 61, 0.2) 100%)',
-                            border: '1px solid rgba(34, 197, 94, 0.3)',
-                            color: '#86efac',
+                            background: currentTheme.success,
+                            border: `1px solid ${currentTheme.successBorder}`,
+                            color: isDarkMode ? '#86efac' : '#16a34a',
                             padding: isMobile ? '8px 14px' : '10px 16px',
                             borderRadius: isMobile ? '10px' : '12px',
                             fontSize: isMobile ? '12px' : '13px',
@@ -351,78 +430,10 @@ export default function App() {
                             {isMobile ? '+35% Better' : '+35% Better Results'}
                         </div>
                     </div>
-
-                    {/* Example Queries - FIXED */}{/*
-                    <div style={{ width: '100%' }}>
-                        <p style={{
-                            textAlign: 'center',
-                            color: '#94a3b8',
-                            marginBottom: isMobile ? '12px' : '16px',
-                            fontSize: isMobile ? '13px' : '14px'
-                        }}>
-                            Try these examples:
-                        </p>
-                        <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: isMobile ? '1fr' : 'repeat(2, 1fr)',
-                            gap: isMobile ? '8px' : '10px',
-                            width: '100%'
-                        }}>
-                            {exampleQueries.map((example, index) => (
-                                <button
-                                    key={index}
-                                    onClick={() => handleExampleClick(example)}
-                                    disabled={loading}
-                                    style={{
-                                        background: 'rgba(255, 255, 255, 0.05)',
-                                        border: '1px solid rgba(255, 255, 255, 0.1)',
-                                        color: '#cbd5e1',
-                                        padding: isMobile ? '10px 12px' : '12px 16px',
-                                        borderRadius: isMobile ? '8px' : '10px',
-                                        fontSize: isMobile ? '12px' : '13px',
-                                        cursor: loading ? 'not-allowed' : 'pointer',
-                                        transition: 'all 0.2s ease',
-                                        opacity: loading ? 0.6 : 1,
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '8px',
-                                        width: '100%',
-                                        justifyContent: 'flex-start',
-                                        textAlign: 'left',
-                                        boxSizing: 'border-box'
-                                    }}
-                                    onMouseEnter={(e) => {
-                                        if (!loading) {
-                                            e.target.style.background = 'rgba(102, 126, 234, 0.2)'
-                                            e.target.style.border = '1px solid rgba(102, 126, 234, 0.5)'
-                                            e.target.style.transform = 'translateY(-1px)'
-                                        }
-                                    }}
-                                    onMouseLeave={(e) => {
-                                        if (!loading) {
-                                            e.target.style.background = 'rgba(255, 255, 255, 0.05)'
-                                            e.target.style.border = '1px solid rgba(255, 255, 255, 0.1)'
-                                            e.target.style.transform = 'translateY(0)'
-                                        }
-                                    }}
-                                >
-                                    <span style={{ flexShrink: 0, fontSize: '1.1rem' }}>{example.emoji}</span>
-                                    <span style={{
-                                        overflow: 'hidden',
-                                        textOverflow: 'ellipsis',
-                                        whiteSpace: 'nowrap',
-                                        flex: 1
-                                    }}>
-                                        {example.text}
-                                    </span>
-                                </button>
-                            ))}
-                        </div>
-                    </div> */}
                 </div>
             </div>
 
-            {/* Results Grid - FIXED */}
+            {/* Results Grid */}
             <div style={{
                 width: '100%',
                 padding: isMobile ? '0 16px 40px' : '0 20px 60px',
@@ -431,7 +442,7 @@ export default function App() {
                 margin: '0 auto'
             }}>
                 {results.length === 0 && !loading && (
-                    <EmptyState isMobile={isMobile} hasQuery={!!q} />
+                    <EmptyState isMobile={isMobile} hasQuery={!!q} currentTheme={currentTheme} />
                 )}
 
                 {results.length > 0 && (
@@ -447,6 +458,8 @@ export default function App() {
                                 product={r}
                                 index={i}
                                 isMobile={isMobile}
+                                currentTheme={currentTheme}
+                                isDarkMode={isDarkMode}
                             />
                         ))}
                     </div>
@@ -471,21 +484,19 @@ export default function App() {
                     }
                 }
 
-                /* Ensure no horizontal scroll */
                 body {
                     margin: 0;
                     padding: 0;
                     overflow-x: hidden;
+                    transition: background-color 0.3s ease;
                 }
 
-                /* Mobile optimizations */
                 @media (max-width: 768px) {
                     input, button {
                         -webkit-appearance: none;
                         border-radius: 12px;
                     }
                     
-                    /* Improve touch targets */
                     button {
                         min-height: 44px;
                     }
@@ -496,11 +507,11 @@ export default function App() {
 }
 
 // Empty State Component
-const EmptyState = ({ isMobile, hasQuery }) => {
+const EmptyState = ({ isMobile, hasQuery, currentTheme }) => {
     return (
         <div style={{
             textAlign: 'center',
-            color: '#64748b',
+            color: currentTheme.textTertiary,
             padding: isMobile ? '60px 20px' : '80px 20px',
             width: '100%',
             boxSizing: 'border-box'
@@ -514,14 +525,14 @@ const EmptyState = ({ isMobile, hasQuery }) => {
             </div>
             <h3 style={{
                 fontSize: isMobile ? '1.3rem' : '1.5rem',
-                color: '#cbd5e1',
+                color: currentTheme.textSecondary,
                 marginBottom: isMobile ? '8px' : '12px'
             }}>
                 {hasQuery ? 'No products found' : 'Ready to Discover Amazing Fashion?'}
             </h3>
             <p style={{
                 fontSize: isMobile ? '0.9rem' : '1rem',
-                color: '#94a3b8',
+                color: currentTheme.textTertiary,
                 lineHeight: 1.5
             }}>
                 {hasQuery
@@ -534,7 +545,7 @@ const EmptyState = ({ isMobile, hasQuery }) => {
 }
 
 // Product Card Component
-const ProductCard = ({ product, index, isMobile }) => {
+const ProductCard = ({ product, index, isMobile, currentTheme, isDarkMode }) => {
     const [imageLoaded, setImageLoaded] = useState(false)
     const [imageError, setImageError] = useState(false)
 
@@ -548,8 +559,8 @@ const ProductCard = ({ product, index, isMobile }) => {
 
     return (
         <div style={{
-            background: 'rgba(30, 41, 59, 0.6)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
+            background: currentTheme.cardBackground,
+            border: `1px solid ${currentTheme.border}`,
             borderRadius: isMobile ? '16px' : '20px',
             padding: isMobile ? '20px' : '24px',
             backdropFilter: 'blur(10px)',
@@ -570,7 +581,9 @@ const ProductCard = ({ product, index, isMobile }) => {
                     marginBottom: isMobile ? '16px' : '20px',
                     borderRadius: isMobile ? '12px' : '16px',
                     overflow: 'hidden',
-                    background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
+                    background: isDarkMode
+                        ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+                        : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
                     position: 'relative'
                 }}>
                     <img
@@ -597,16 +610,18 @@ const ProductCard = ({ product, index, isMobile }) => {
                             display: 'flex',
                             alignItems: 'center',
                             justifyContent: 'center',
-                            background: 'linear-gradient(135deg, #1e293b 0%, #334155 100%)',
-                            color: '#475569',
+                            background: isDarkMode
+                                ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
+                                : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
+                            color: currentTheme.textTertiary,
                             fontSize: isMobile ? '12px' : '14px'
                         }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                                 <div style={{
                                     width: isMobile ? '14px' : '16px',
                                     height: isMobile ? '14px' : '16px',
-                                    border: '2px solid #475569',
-                                    borderTop: '2px solid #64748b',
+                                    border: `2px solid ${currentTheme.textTertiary}`,
+                                    borderTop: `2px solid ${currentTheme.textSecondary}`,
                                     borderRadius: '50%',
                                     animation: 'spin 1s linear infinite'
                                 }}></div>
@@ -623,7 +638,7 @@ const ProductCard = ({ product, index, isMobile }) => {
                     fontWeight: 600,
                     fontSize: isMobile ? '14px' : '16px',
                     marginBottom: isMobile ? '10px' : '12px',
-                    color: '#f1f5f9',
+                    color: currentTheme.textPrimary,
                     lineHeight: 1.4,
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
@@ -680,14 +695,14 @@ const ProductCard = ({ product, index, isMobile }) => {
                         display: 'inline-flex',
                         alignItems: 'center',
                         gap: '6px',
-                        background: 'linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%)',
-                        color: '#c7d2fe',
+                        background: currentTheme.accentSolid,
+                        color: isDarkMode ? '#c7d2fe' : '#4f46e5',
                         padding: '4px 10px',
                         borderRadius: '20px',
                         fontSize: isMobile ? '11px' : '12px',
                         fontWeight: 600,
                         marginBottom: '12px',
-                        border: '1px solid rgba(102, 126, 234, 0.3)'
+                        border: `1px solid ${currentTheme.border}`
                     }}>
                         <span>🎯</span>
                         <span>{(product.score * 100).toFixed(1)}% Match</span>
