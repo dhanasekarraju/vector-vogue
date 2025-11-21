@@ -1,4 +1,4 @@
-# Semantic Recommendation Microservice (Take-home)
+# Semantic Recommendation Microservice
 
 This project contains a Python FastAPI backend that builds a FAISS index from a products dataset and serves semantic recommendations, plus a minimal React frontend to demo the API.
 
