@@ -1,714 +1,758 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect } from 'react';
+import { Search, Sliders, History, X, TrendingUp, Star, DollarSign, Filter, Moon, Sun, Sparkles } from 'lucide-react';
 
 export default function App() {
-    const [q, setQ] = useState('outfit for tropical vacation')
-    const [results, setResults] = useState([])
-    const [loading, setLoading] = useState(false)
-    const [rerank, setRerank] = useState(false)
-    const [searchTime, setSearchTime] = useState(0)
-    const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200)
-    const [isDarkMode, setIsDarkMode] = useState(true)
+    const [query, setQuery] = useState('');
+    const [results, setResults] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [useRerank, setUseRerank] = useState(true);
+    const [searchTime, setSearchTime] = useState(0);
+    const [isDark, setIsDark] = useState(true);
+    const [showFilters, setShowFilters] = useState(false);
+    const [searchHistory, setSearchHistory] = useState([]);
 
-    // Theme colors
-    const theme = {
-        dark: {
-            background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #334155 100%)',
-            surface: 'rgba(30, 41, 59, 0.8)',
-            surfaceSolid: 'rgba(15, 23, 42, 0.8)',
-            textPrimary: '#ffffff',
-            textSecondary: '#cbd5e1',
-            textTertiary: '#94a3b8',
-            border: 'rgba(255, 255, 255, 0.1)',
-            accent: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            accentSolid: 'rgba(102, 126, 234, 0.2)',
-            success: 'rgba(34, 197, 94, 0.2)',
-            successBorder: 'rgba(34, 197, 94, 0.3)',
-            cardBackground: 'rgba(30, 41, 59, 0.6)',
-            inputBackground: 'rgba(15, 23, 42, 0.8)',
-            gradientHeader: 'linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)'
-        },
-        light: {
-            background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 50%, #cbd5e1 100%)',
-            surface: 'rgba(255, 255, 255, 0.9)',
-            surfaceSolid: 'rgba(248, 250, 252, 0.9)',
-            textPrimary: '#1e293b',
-            textSecondary: '#475569',
-            textTertiary: '#64748b',
-            border: 'rgba(30, 41, 59, 0.1)',
-            accent: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-            accentSolid: 'rgba(102, 126, 234, 0.1)',
-            success: 'rgba(34, 197, 94, 0.1)',
-            successBorder: 'rgba(34, 197, 94, 0.3)',
-            cardBackground: 'rgba(255, 255, 255, 0.8)',
-            inputBackground: 'rgba(248, 250, 252, 0.9)',
-            gradientHeader: 'linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)'
-        }
-    }
+    // Advanced filters
+    const [filters, setFilters] = useState({
+        gender: 'all',
+        minPrice: '',
+        maxPrice: '',
+        minRating: '',
+        sortBy: 'relevance'
+    });
 
-    const currentTheme = isDarkMode ? theme.dark : theme.light
-
-    // Handle window resize
+    // Auto-search when filters change (if there's already a query)
     useEffect(() => {
-        const handleResize = () => setWindowWidth(window.innerWidth)
-        window.addEventListener('resize', handleResize)
-        return () => window.removeEventListener('resize', handleResize)
-    }, [])
+        if (query.trim() && results.length > 0) {
+            const timeoutId = setTimeout(() => {
+                handleSearch();
+            }, 500);
+            return () => clearTimeout(timeoutId);
+        }
+    }, [filters]);
 
-    // Responsive breakpoints
-    const isMobile = windowWidth < 768
-    const isTablet = windowWidth >= 768 && windowWidth < 1024
-    const isDesktop = windowWidth >= 1024
+    // Load search history from memory
+    useEffect(() => {
+        const saved = localStorage.getItem('searchHistory');
+        if (saved) {
+            try {
+                setSearchHistory(JSON.parse(saved));
+            } catch (e) {
+                console.error('Failed to load history');
+            }
+        }
+    }, []);
 
-    const exampleQueries = [
-        { text: "men's beach shorts", emoji: "🏖️" },
-        { text: "women's running shoes", emoji: "👟" },
-        { text: "office outfit", emoji: "💼" },
-        { text: "winter coat", emoji: "❄️" },
-        { text: "wedding dress", emoji: "👰" },
-        { text: "walking shoes", emoji: "🚶" }
-    ]
+    const theme = {
+        bg: isDark ? '#0a0e1a' : '#f8f9fa',
+        surface: isDark ? '#111827' : '#ffffff',
+        surfaceHover: isDark ? '#1f2937' : '#f3f4f6',
+        border: isDark ? '#1f2937' : '#e5e7eb',
+        text: isDark ? '#f9fafb' : '#111827',
+        textSecondary: isDark ? '#9ca3af' : '#6b7280',
+        textTertiary: isDark ? '#6b7280' : '#9ca3af',
+        accent: isDark ? '#6366f1' : '#4f46e5',
+        accentHover: isDark ? '#818cf8' : '#6366f1',
+        success: '#10b981',
+        warning: '#f59e0b',
+        gradient: isDark
+            ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
+            : 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+    };
 
-    async function submit() {
-        if (!q.trim()) return
+    const handleSearch = async () => {
+        if (!query.trim()) return;
 
-        setLoading(true)
-        const startTime = performance.now()
+        setLoading(true);
+        const startTime = performance.now();
 
         try {
-            const res = await fetch('/api/recommend', {
+            // Build the request payload
+            const payload = {
+                q: query,
+                top_k: 12,
+                rerank: useRerank
+            };
+
+            // Add gender filter if not 'all'
+            if (filters.gender && filters.gender !== 'all') {
+                payload.gender_filter = filters.gender;
+            }
+
+            // Call your actual backend API
+            const response = await fetch('/api/recommend', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    q,
-                    top_k: isMobile ? 8 : 12,
-                    rerank
-                })
-            })
-            const data = await res.json()
+                body: JSON.stringify(payload)
+            });
 
-            const endTime = performance.now()
-            setSearchTime(Math.round(endTime - startTime))
+            if (!response.ok) {
+                throw new Error(`API error: ${response.status}`);
+            }
 
-            setResults(data.results || [])
-        } catch (e) {
-            alert('Error: ' + e.message)
+            const data = await response.json();
+            let filteredResults = data.results || [];
+
+            // Apply client-side filters for price and rating
+            if (filters.minPrice || filters.maxPrice || filters.minRating) {
+                filteredResults = filteredResults.filter(product => {
+                    const price = product.price || product.raw?.price;
+                    const rating = product.rating || product.raw?.average_rating;
+
+                    // Price filters
+                    if (filters.minPrice && price < parseFloat(filters.minPrice)) {
+                        return false;
+                    }
+                    if (filters.maxPrice && price > parseFloat(filters.maxPrice)) {
+                        return false;
+                    }
+
+                    // Rating filter
+                    if (filters.minRating && rating < parseFloat(filters.minRating)) {
+                        return false;
+                    }
+
+                    return true;
+                });
+            }
+
+            const endTime = performance.now();
+            setSearchTime(Math.round(endTime - startTime));
+            setResults(filteredResults);
+
+            // Add to history
+            const newHistory = [query, ...searchHistory.filter(h => h !== query)].slice(0, 10);
+            setSearchHistory(newHistory);
+            localStorage.setItem('searchHistory', JSON.stringify(newHistory));
+
+        } catch (error) {
+            console.error('Search failed:', error);
+            alert('Search failed: ' + error.message);
         } finally {
-            setLoading(false)
+            setLoading(false);
         }
-    }
+    };
 
-    const handleKeyPress = (e) => {
-        if (e.key === 'Enter') {
-            submit()
-        }
-    }
+    const clearHistory = () => {
+        setSearchHistory([]);
+        localStorage.removeItem('searchHistory');
+    };
 
-    const handleExampleClick = (example) => {
-        setQ(example.text)
-        setTimeout(() => submit(), 100)
-    }
-
-    const toggleTheme = () => {
-        setIsDarkMode(!isDarkMode)
-    }
+    const handleHistoryClick = (historyQuery) => {
+        setQuery(historyQuery);
+        setTimeout(() => handleSearch(), 100);
+    };
 
     return (
         <div style={{
-            fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
-            padding: '0',
-            background: currentTheme.background,
             minHeight: '100vh',
-            color: currentTheme.textPrimary,
-            overflowX: 'hidden',
-            width: '100%',
-            maxWidth: '100vw',
+            background: theme.bg,
+            color: theme.text,
+            fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
             transition: 'all 0.3s ease'
         }}>
-            {/* Enhanced Header */}
-            <div style={{
-                background: currentTheme.gradientHeader,
-                padding: isMobile ? '40px 16px 30px' : '60px 20px 40px',
-                textAlign: 'center',
-                borderBottom: `1px solid ${currentTheme.border}`,
-                width: '100%',
-                boxSizing: 'border-box',
-                position: 'relative'
+            {/* Professional Header */}
+            <header style={{
+                background: theme.surface,
+                borderBottom: `1px solid ${theme.border}`,
+                position: 'sticky',
+                top: 0,
+                zIndex: 1000,
+                backdropFilter: 'blur(10px)',
+                backgroundColor: isDark ? 'rgba(17, 24, 39, 0.8)' : 'rgba(255, 255, 255, 0.8)'
             }}>
-                {/* Theme Toggle Button */}
-                <button
-                    onClick={toggleTheme}
-                    style={{
-                        position: 'absolute',
-                        top: isMobile ? '16px' : '20px',
-                        right: isMobile ? '16px' : '20px',
-                        background: currentTheme.surface,
-                        border: `1px solid ${currentTheme.border}`,
-                        borderRadius: '50%',
-                        width: isMobile ? '44px' : '48px',
-                        height: isMobile ? '44px' : '48px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        fontSize: isMobile ? '1.2rem' : '1.3rem',
-                        transition: 'all 0.3s ease',
-                        backdropFilter: 'blur(10px)',
-                        color: currentTheme.textPrimary
-                    }}
-                    onMouseEnter={(e) => {
-                        e.target.style.transform = 'rotate(15deg) scale(1.1)'
-                    }}
-                    onMouseLeave={(e) => {
-                        e.target.style.transform = 'rotate(0) scale(1)'
-                    }}
-                >
-                    {isDarkMode ? '☀️' : '🌙'}
-                </button>
-
                 <div style={{
-                    maxWidth: '1200px',
+                    maxWidth: '1400px',
                     margin: '0 auto',
-                    width: '100%'
+                    padding: '20px 24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '24px'
                 }}>
-                    <h1 style={{
-                        fontSize: isMobile ? '2.5rem' : isTablet ? '3rem' : '3.5rem',
-                        fontWeight: 800,
-                        background: currentTheme.accent,
-                        WebkitBackgroundClip: 'text',
-                        WebkitTextFillColor: 'transparent',
-                        marginBottom: isMobile ? '12px' : '16px',
-                        textShadow: isDarkMode ? '0 4px 20px rgba(102, 126, 234, 0.3)' : '0 2px 10px rgba(102, 126, 234, 0.2)',
-                        lineHeight: 1.2,
-                        wordWrap: 'break-word'
-                    }}>
-                        {isMobile ? '✨ Vector Vogue' : '✨ Vector Vogue AI'}
-                    </h1>
-                    <p style={{
-                        fontSize: isMobile ? '1.1rem' : '1.3rem',
-                        color: currentTheme.textSecondary,
-                        marginBottom: isMobile ? '8px' : '12px',
-                        fontWeight: 300,
-                        lineHeight: 1.4
-                    }}>
-                        {isMobile ? 'AI Fashion Search' : 'Discover fashion with AI-powered semantic intelligence'}
-                    </p>
-
-                    {results.length > 0 && (
-                        <div style={{
-                            display: 'flex',
-                            gap: isMobile ? '12px' : '20px',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                            fontSize: isMobile ? '0.8rem' : '0.9rem',
-                            color: currentTheme.textTertiary,
-                            flexWrap: 'wrap'
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <Sparkles size={28} style={{ color: theme.accent }} />
+                        <h1 style={{
+                            fontSize: '24px',
+                            fontWeight: 700,
+                            // background: theme.gradient,
+                            color: 'royalblue',
+                            // WebkitBackgroundClip: 'text',
+                            // WebkitTextFillColor: 'transparent',
+                            margin: 0
                         }}>
-                            <span style={{
-                                background: currentTheme.accentSolid,
-                                padding: '6px 12px',
-                                borderRadius: '20px',
-                                border: `1px solid ${currentTheme.border}`,
-                                whiteSpace: 'nowrap'
-                            }}>
-                                📊 {results.length} products
-                            </span>
-                            {searchTime > 0 && (
-                                <span style={{
-                                    background: currentTheme.success,
-                                    padding: '6px 12px',
-                                    borderRadius: '20px',
-                                    border: `1px solid ${currentTheme.successBorder}`,
-                                    whiteSpace: 'nowrap'
-                                }}>
-                                    ⚡ {searchTime}ms
-                                </span>
-                            )}
-                        </div>
-                    )}
-                </div>
-            </div>
+                            Vector Vogue
+                        </h1>
+                    </div>
 
-            {/* Search Section */}
-            <div style={{
-                width: '100%',
-                padding: isMobile ? '0 16px' : '0 20px',
-                boxSizing: 'border-box',
-                margin: isMobile ? '-20px auto 40px' : '-30px auto 50px',
-                maxWidth: '800px'
-            }}>
-                <div style={{
-                    background: currentTheme.surface,
-                    backdropFilter: 'blur(20px)',
-                    padding: isMobile ? '24px 20px' : '32px',
-                    borderRadius: isMobile ? '16px' : '20px',
-                    border: `1px solid ${currentTheme.border}`,
-                    boxShadow: isDarkMode
-                        ? '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
-                        : '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
-                    width: '100%',
-                    boxSizing: 'border-box'
-                }}>
-                    {/* Search Input Group */}
-                    <div style={{
-                        display: 'flex',
-                        flexDirection: isMobile ? 'column' : 'row',
-                        gap: isMobile ? '12px' : '16px',
-                        marginBottom: isMobile ? '20px' : '24px',
-                        alignItems: 'stretch',
-                        width: '100%'
-                    }}>
-                        {/* Input Container */}
-                        <div style={{
-                            flex: 1,
-                            position: 'relative',
-                            display: 'flex',
-                            alignItems: 'center',
-                            width: '100%'
-                        }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        {searchTime > 0 && (
                             <div style={{
-                                position: 'absolute',
-                                left: isMobile ? '16px' : '20px',
-                                zIndex: 2,
-                                fontSize: isMobile ? '1.1rem' : '1.2rem',
-                                color: currentTheme.textTertiary
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '8px',
+                                fontSize: '13px',
+                                color: theme.textSecondary,
+                                background: theme.surfaceHover,
+                                padding: '6px 12px',
+                                borderRadius: '6px'
                             }}>
-                                🔍
+                                <TrendingUp size={14} />
+                                <span>{searchTime}ms</span>
                             </div>
-                            <input
-                                style={{
-                                    width: '100%',
-                                    padding: isMobile ? '16px 16px 16px 44px' : '18px 18px 18px 50px',
-                                    fontSize: isMobile ? '14px' : '16px',
-                                    borderRadius: isMobile ? '12px' : '14px',
-                                    border: `2px solid ${currentTheme.border}`,
-                                    outline: 'none',
-                                    transition: 'all 0.3s ease',
-                                    background: currentTheme.inputBackground,
-                                    color: currentTheme.textPrimary,
-                                    backdropFilter: 'blur(10px)',
-                                    boxSizing: 'border-box'
-                                }}
-                                value={q}
-                                onChange={(e) => setQ(e.target.value)}
-                                onKeyPress={handleKeyPress}
-                                placeholder={isMobile ? "What are you looking for? " : "Describe what you're looking for... "}
-                                disabled={loading}
-                            />
-                        </div>
+                        )}
 
-                        {/* Search Button */}
                         <button
-                            onClick={submit}
-                            disabled={loading || !q.trim()}
+                            onClick={() => setIsDark(!isDark)}
                             style={{
-                                padding: isMobile ? '0 20px' : '0 28px',
-                                background: loading || !q.trim() ?
-                                    (isDarkMode ? 'linear-gradient(135deg, #475569 0%, #64748b 100%)' : 'linear-gradient(135deg, #cbd5e1 0%, #94a3b8 100%)') :
-                                    currentTheme.accent,
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: isMobile ? '12px' : '14px',
-                                cursor: loading || !q.trim() ? 'not-allowed' : 'pointer',
-                                fontWeight: 600,
-                                fontSize: isMobile ? '14px' : '15px',
-                                transition: 'all 0.3s ease',
-                                minWidth: isMobile ? 'auto' : '140px',
-                                height: isMobile ? '48px' : '54px',
+                                background: theme.surfaceHover,
+                                border: `1px solid ${theme.border}`,
+                                borderRadius: '8px',
+                                padding: '8px',
+                                cursor: 'pointer',
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'center',
-                                gap: '8px',
-                                boxShadow: loading || !q.trim() ? 'none' :
-                                    (isDarkMode ? '0 8px 25px rgba(102, 126, 234, 0.4)' : '0 8px 25px rgba(102, 126, 234, 0.3)'),
-                                position: 'relative',
-                                overflow: 'hidden',
-                                whiteSpace: 'nowrap',
-                                flexShrink: 0
-                            }}
-                            onMouseEnter={(e) => {
-                                if (!loading && q.trim()) {
-                                    e.target.style.transform = 'translateY(-2px)'
-                                    e.target.style.boxShadow = isDarkMode
-                                        ? '0 12px 30px rgba(102, 126, 234, 0.6)'
-                                        : '0 12px 30px rgba(102, 126, 234, 0.4)'
-                                }
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.transform = 'translateY(0)'
-                                e.target.style.boxShadow = loading || !q.trim() ? 'none' :
-                                    (isDarkMode ? '0 8px 25px rgba(102, 126, 234, 0.4)' : '0 8px 25px rgba(102, 126, 234, 0.3)')
+                                transition: 'all 0.2s ease',
+                                color: theme.text
                             }}
                         >
-                            {loading ? (
-                                <>
-                                    <div style={{
-                                        width: isMobile ? '16px' : '18px',
-                                        height: isMobile ? '16px' : '18px',
-                                        border: '2px solid transparent',
-                                        borderTop: '2px solid white',
-                                        borderRadius: '50%',
-                                        animation: 'spin 1s linear infinite'
-                                    }}></div>
-                                    <span>{isMobile ? '...' : 'Searching'}</span>
-                                </>
-                            ) : (
-                                <>
-                                    <span>Search</span>
-                                </>
-                            )}
+                            {isDark ? <Sun size={18} /> : <Moon size={18} />}
                         </button>
                     </div>
+                </div>
+            </header>
 
-                    {/* Rerank Toggle */}
+            {/* Main Content */}
+            <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '40px 24px' }}>
+                {/* Search Section */}
+                <div style={{ marginBottom: '40px' }}>
                     <div style={{
-                        display: 'flex',
-                        flexDirection: isMobile ? 'column' : 'row',
-                        alignItems: 'center',
-                        gap: isMobile ? '12px' : '16px',
-                        justifyContent: 'center',
-                        marginBottom: isMobile ? '20px' : '24px',
-                        width: '100%'
+                        background: theme.surface,
+                        borderRadius: '16px',
+                        border: `1px solid ${theme.border}`,
+                        padding: '32px',
+                        boxShadow: isDark
+                            ? '0 4px 6px -1px rgba(0, 0, 0, 0.3)'
+                            : '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
                     }}>
-                        <label style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: isMobile ? '10px' : '12px',
-                            cursor: 'pointer',
-                            color: currentTheme.textSecondary,
-                            fontSize: isMobile ? '14px' : '15px',
-                            fontWeight: 500,
-                            padding: isMobile ? '10px 16px' : '12px 20px',
-                            background: currentTheme.inputBackground,
-                            borderRadius: isMobile ? '10px' : '12px',
-                            border: `1px solid ${currentTheme.border}`,
-                            width: isMobile ? '100%' : 'auto',
-                            justifyContent: isMobile ? 'center' : 'flex-start',
-                            boxSizing: 'border-box'
-                        }}>
+                        {/* Search Input */}
+                        <div style={{ marginBottom: '20px' }}>
                             <div style={{
-                                position: 'relative',
-                                width: isMobile ? '44px' : '48px',
-                                height: isMobile ? '24px' : '26px',
-                                background: rerank ? currentTheme.accent : currentTheme.textTertiary,
-                                borderRadius: isMobile ? '12px' : '13px',
-                                transition: 'all 0.3s ease',
-                                boxShadow: rerank ? (isDarkMode ? '0 4px 15px rgba(102, 126, 234, 0.4)' : '0 4px 15px rgba(102, 126, 234, 0.3)') : 'none'
+                                display: 'flex',
+                                gap: '12px',
+                                alignItems: 'center'
                             }}>
                                 <div style={{
-                                    position: 'absolute',
-                                    top: '3px',
-                                    left: rerank ? (isMobile ? '22px' : '24px') : '3px',
-                                    width: isMobile ? '18px' : '20px',
-                                    height: isMobile ? '18px' : '20px',
-                                    background: 'white',
-                                    borderRadius: '50%',
-                                    transition: 'all 0.3s ease',
-                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.3)'
-                                }}></div>
+                                    flex: 1,
+                                    position: 'relative'
+                                }}>
+                                    <Search
+                                        size={20}
+                                        style={{
+                                            position: 'absolute',
+                                            left: '16px',
+                                            top: '50%',
+                                            transform: 'translateY(-50%)',
+                                            color: theme.textTertiary
+                                        }}
+                                    />
+                                    <input
+                                        type="text"
+                                        value={query}
+                                        onChange={(e) => setQuery(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+                                        placeholder="Describe what you're looking for..."
+                                        style={{
+                                            width: '100%',
+                                            padding: '16px 16px 16px 48px',
+                                            fontSize: '16px',
+                                            background: theme.bg,
+                                            border: `2px solid ${theme.border}`,
+                                            borderRadius: '12px',
+                                            color: theme.text,
+                                            outline: 'none',
+                                            transition: 'all 0.2s ease',
+                                            boxSizing: 'border-box'
+                                        }}
+                                    />
+                                </div>
+
+                                <button
+                                    onClick={() => setShowFilters(!showFilters)}
+                                    style={{
+                                        padding: '16px 20px',
+                                        background: showFilters ? theme.accent : theme.surfaceHover,
+                                        color: showFilters ? '#fff' : theme.text,
+                                        border: `1px solid ${showFilters ? theme.accent : theme.border}`,
+                                        borderRadius: '12px',
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        fontSize: '15px',
+                                        fontWeight: 500,
+                                        transition: 'all 0.2s ease'
+                                    }}
+                                >
+                                    <Sliders size={18} />
+                                    <span>Filters</span>
+                                </button>
+
+                                <button
+                                    onClick={handleSearch}
+                                    disabled={loading || !query.trim()}
+                                    style={{
+                                        padding: '16px 32px',
+                                        background: loading || !query.trim() ? theme.surfaceHover : theme.gradient,
+                                        color: '#fff',
+                                        border: 'none',
+                                        borderRadius: '12px',
+                                        cursor: loading || !query.trim() ? 'not-allowed' : 'pointer',
+                                        fontSize: '15px',
+                                        fontWeight: 600,
+                                        transition: 'all 0.2s ease',
+                                        opacity: loading || !query.trim() ? 0.5 : 1,
+                                        minWidth: '120px'
+                                    }}
+                                >
+                                    {loading ? 'Searching...' : 'Search'}
+                                </button>
                             </div>
-                            <input
-                                type="checkbox"
-                                checked={rerank}
-                                onChange={(e) => setRerank(e.target.checked)}
-                                style={{ display: 'none' }}
-                            />
-                            <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                <span style={{ fontSize: isMobile ? '1rem' : '1.1rem' }}>🧠</span>
-                                {isMobile ? 'AI Ranking' : 'AI Smart Ranking'}
-                            </span>
-                        </label>
-                        <div style={{
-                            background: currentTheme.success,
-                            border: `1px solid ${currentTheme.successBorder}`,
-                            color: isDarkMode ? '#86efac' : '#16a34a',
-                            padding: isMobile ? '8px 14px' : '10px 16px',
-                            borderRadius: isMobile ? '10px' : '12px',
-                            fontSize: isMobile ? '12px' : '13px',
-                            fontWeight: 600,
-                            whiteSpace: 'nowrap'
-                        }}>
-                            {isMobile ? '+35% Better' : '+35% Better Results'}
                         </div>
-                    </div>
-                </div>
-            </div>
 
-            {/* Results Grid */}
-            <div style={{
-                width: '100%',
-                padding: isMobile ? '0 16px 40px' : '0 20px 60px',
-                boxSizing: 'border-box',
-                maxWidth: '1400px',
-                margin: '0 auto'
-            }}>
-                {results.length === 0 && !loading && (
-                    <EmptyState isMobile={isMobile} hasQuery={!!q} currentTheme={currentTheme} />
-                )}
+                        {/* Advanced Filters */}
+                        {showFilters && (
+                            <div style={{
+                                padding: '24px',
+                                background: theme.bg,
+                                borderRadius: '12px',
+                                marginBottom: '20px'
+                            }}>
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                    gap: '16px'
+                                }}>
+                                    <div>
+                                        <label style={{
+                                            display: 'block',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            color: theme.textSecondary,
+                                            marginBottom: '8px'
+                                        }}>Gender</label>
+                                        <select
+                                            value={filters.gender}
+                                            onChange={(e) => setFilters({...filters, gender: e.target.value})}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                background: theme.surface,
+                                                border: `1px solid ${theme.border}`,
+                                                borderRadius: '8px',
+                                                color: theme.text,
+                                                fontSize: '14px'
+                                            }}
+                                        >
+                                            <option value="all">All</option>
+                                            <option value="men">Men</option>
+                                            <option value="women">Women</option>
+                                            <option value="unisex">Unisex</option>
+                                        </select>
+                                    </div>
 
-                {results.length > 0 && (
-                    <div style={{
-                        display: 'grid',
-                        gridTemplateColumns: isMobile ? '1fr' : isTablet ? 'repeat(2, 1fr)' : 'repeat(auto-fill, minmax(300px, 1fr))',
-                        gap: isMobile ? '16px' : '24px',
-                        width: '100%'
-                    }}>
-                        {results.map((r, i) => (
-                            <ProductCard
-                                key={i}
-                                product={r}
-                                index={i}
-                                isMobile={isMobile}
-                                currentTheme={currentTheme}
-                                isDarkMode={isDarkMode}
-                            />
-                        ))}
-                    </div>
-                )}
-            </div>
+                                    <div>
+                                        <label style={{
+                                            display: 'block',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            color: theme.textSecondary,
+                                            marginBottom: '8px'
+                                        }}>Min Price</label>
+                                        <input
+                                            type="number"
+                                            value={filters.minPrice}
+                                            onChange={(e) => setFilters({...filters, minPrice: e.target.value})}
+                                            placeholder="$0"
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                background: theme.surface,
+                                                border: `1px solid ${theme.border}`,
+                                                borderRadius: '8px',
+                                                color: theme.text,
+                                                fontSize: '14px'
+                                            }}
+                                        />
+                                    </div>
 
-            {/* CSS Animations */}
-            <style>{`
-                @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                }
-                
-                @keyframes fadeInUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(30px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
+                                    <div>
+                                        <label style={{
+                                            display: 'block',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            color: theme.textSecondary,
+                                            marginBottom: '8px'
+                                        }}>Max Price</label>
+                                        <input
+                                            type="number"
+                                            value={filters.maxPrice}
+                                            onChange={(e) => setFilters({...filters, maxPrice: e.target.value})}
+                                            placeholder="$1000"
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                background: theme.surface,
+                                                border: `1px solid ${theme.border}`,
+                                                borderRadius: '8px',
+                                                color: theme.text,
+                                                fontSize: '14px'
+                                            }}
+                                        />
+                                    </div>
 
-                body {
-                    margin: 0;
-                    padding: 0;
-                    overflow-x: hidden;
-                    transition: background-color 0.3s ease;
-                }
+                                    <div>
+                                        <label style={{
+                                            display: 'block',
+                                            fontSize: '13px',
+                                            fontWeight: 500,
+                                            color: theme.textSecondary,
+                                            marginBottom: '8px'
+                                        }}>Min Rating</label>
+                                        <select
+                                            value={filters.minRating}
+                                            onChange={(e) => setFilters({...filters, minRating: e.target.value})}
+                                            style={{
+                                                width: '100%',
+                                                padding: '10px 12px',
+                                                background: theme.surface,
+                                                border: `1px solid ${theme.border}`,
+                                                borderRadius: '8px',
+                                                color: theme.text,
+                                                fontSize: '14px'
+                                            }}
+                                        >
+                                            <option value="">Any</option>
+                                            <option value="3">3+ Stars</option>
+                                            <option value="4">4+ Stars</option>
+                                            <option value="4.5">4.5+ Stars</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
-                @media (max-width: 768px) {
-                    input, button {
-                        -webkit-appearance: none;
-                        border-radius: 12px;
-                    }
-                    
-                    button {
-                        min-height: 44px;
-                    }
-                }
-            `}</style>
-        </div>
-    )
-}
-
-// Empty State Component
-const EmptyState = ({ isMobile, hasQuery, currentTheme }) => {
-    return (
-        <div style={{
-            textAlign: 'center',
-            color: currentTheme.textTertiary,
-            padding: isMobile ? '60px 20px' : '80px 20px',
-            width: '100%',
-            boxSizing: 'border-box'
-        }}>
-            <div style={{
-                fontSize: isMobile ? '3rem' : '4rem',
-                marginBottom: isMobile ? '16px' : '20px',
-                opacity: 0.5
-            }}>
-                {hasQuery ? '🔍' : '🎯'}
-            </div>
-            <h3 style={{
-                fontSize: isMobile ? '1.3rem' : '1.5rem',
-                color: currentTheme.textSecondary,
-                marginBottom: isMobile ? '8px' : '12px'
-            }}>
-                {hasQuery ? 'No products found' : 'Ready to Discover Amazing Fashion?'}
-            </h3>
-            <p style={{
-                fontSize: isMobile ? '0.9rem' : '1rem',
-                color: currentTheme.textTertiary,
-                lineHeight: 1.5
-            }}>
-                {hasQuery
-                    ? 'Try adjusting your search terms or try one of the examples'
-                    : 'Describe what you\'re looking for or try one of the examples above'
-                }
-            </p>
-        </div>
-    )
-}
-
-// Product Card Component
-const ProductCard = ({ product, index, isMobile, currentTheme, isDarkMode }) => {
-    const [imageLoaded, setImageLoaded] = useState(false)
-    const [imageError, setImageError] = useState(false)
-
-    const getImageUrl = () => {
-        if (!product.raw?.images?.[0]) return null
-        const images = product.raw.images[0]
-        return images.hi_res || images.large || images.thumb
-    }
-
-    const imageUrl = getImageUrl()
-
-    return (
-        <div style={{
-            background: currentTheme.cardBackground,
-            border: `1px solid ${currentTheme.border}`,
-            borderRadius: isMobile ? '16px' : '20px',
-            padding: isMobile ? '20px' : '24px',
-            backdropFilter: 'blur(10px)',
-            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-            position: 'relative',
-            overflow: 'hidden',
-            animation: 'fadeInUp 0.6s ease-out',
-            animationDelay: `${index * 0.1}s`,
-            animationFillMode: 'both',
-            width: '100%',
-            boxSizing: 'border-box'
-        }}>
-            {/* Product Image */}
-            {imageUrl && (
-                <div style={{
-                    width: '100%',
-                    height: isMobile ? '180px' : '220px',
-                    marginBottom: isMobile ? '16px' : '20px',
-                    borderRadius: isMobile ? '12px' : '16px',
-                    overflow: 'hidden',
-                    background: isDarkMode
-                        ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
-                        : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-                    position: 'relative'
-                }}>
-                    <img
-                        src={imageUrl}
-                        alt={product.title}
-                        style={{
-                            width: '100%',
-                            height: '100%',
-                            objectFit: 'cover',
-                            transition: 'transform 0.4s ease',
-                            opacity: imageLoaded ? 1 : 0
-                        }}
-                        onLoad={() => setImageLoaded(true)}
-                        onError={() => setImageError(true)}
-                    />
-
-                    {!imageLoaded && !imageError && (
+                        {/* AI Reranking Toggle */}
                         <div style={{
-                            position: 'absolute',
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            bottom: 0,
                             display: 'flex',
                             alignItems: 'center',
-                            justifyContent: 'center',
-                            background: isDarkMode
-                                ? 'linear-gradient(135deg, #1e293b 0%, #334155 100%)'
-                                : 'linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%)',
-                            color: currentTheme.textTertiary,
-                            fontSize: isMobile ? '12px' : '14px'
+                            justifyContent: 'space-between',
+                            padding: '16px',
+                            background: theme.bg,
+                            borderRadius: '12px'
                         }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <div>
                                 <div style={{
-                                    width: isMobile ? '14px' : '16px',
-                                    height: isMobile ? '14px' : '16px',
-                                    border: `2px solid ${currentTheme.textTertiary}`,
-                                    borderTop: `2px solid ${currentTheme.textSecondary}`,
-                                    borderRadius: '50%',
-                                    animation: 'spin 1s linear infinite'
-                                }}></div>
-                                Loading...
+                                    fontWeight: 600,
+                                    fontSize: '14px',
+                                    marginBottom: '4px'
+                                }}>
+                                    AI Smart Ranking
+                                </div>
+                                <div style={{
+                                    fontSize: '12px',
+                                    color: theme.textSecondary
+                                }}>
+                                    +35% better relevance with cross-encoder reranking
+                                </div>
                             </div>
+                            <label style={{
+                                position: 'relative',
+                                display: 'inline-block',
+                                width: '52px',
+                                height: '28px',
+                                cursor: 'pointer'
+                            }}>
+                                <input
+                                    type="checkbox"
+                                    checked={useRerank}
+                                    onChange={(e) => setUseRerank(e.target.checked)}
+                                    style={{ opacity: 0, width: 0, height: 0 }}
+                                />
+                                <span style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    right: 0,
+                                    bottom: 0,
+                                    background: useRerank ? theme.accent : theme.border,
+                                    borderRadius: '14px',
+                                    transition: 'all 0.3s ease'
+                                }}>
+                                    <span style={{
+                                        position: 'absolute',
+                                        height: '22px',
+                                        width: '22px',
+                                        left: useRerank ? '27px' : '3px',
+                                        bottom: '3px',
+                                        background: '#fff',
+                                        borderRadius: '50%',
+                                        transition: 'all 0.3s ease',
+                                        boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                    }}></span>
+                                </span>
+                            </label>
                         </div>
-                    )}
-                </div>
-            )}
 
-            {/* Product Info */}
-            <div style={{ flex: 1 }}>
+                        {/* Search History */}
+                        {searchHistory.length > 0 && (
+                            <div style={{
+                                marginTop: '20px',
+                                padding: '16px',
+                                background: theme.bg,
+                                borderRadius: '12px'
+                            }}>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    marginBottom: '12px'
+                                }}>
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '8px',
+                                        fontSize: '13px',
+                                        fontWeight: 600,
+                                        color: theme.textSecondary
+                                    }}>
+                                        <History size={16} />
+                                        <span>Recent Searches</span>
+                                    </div>
+                                    <button
+                                        onClick={clearHistory}
+                                        style={{
+                                            background: 'none',
+                                            border: 'none',
+                                            color: theme.textTertiary,
+                                            cursor: 'pointer',
+                                            fontSize: '12px',
+                                            padding: '4px 8px'
+                                        }}
+                                    >
+                                        Clear
+                                    </button>
+                                </div>
+                                <div style={{
+                                    display: 'flex',
+                                    flexWrap: 'wrap',
+                                    gap: '8px'
+                                }}>
+                                    {searchHistory.slice(0, 5).map((item, idx) => (
+                                        <button
+                                            key={idx}
+                                            onClick={() => handleHistoryClick(item)}
+                                            style={{
+                                                padding: '6px 12px',
+                                                background: theme.surface,
+                                                border: `1px solid ${theme.border}`,
+                                                borderRadius: '6px',
+                                                fontSize: '13px',
+                                                color: theme.textSecondary,
+                                                cursor: 'pointer',
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            {item}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Results */}
+                {results.length > 0 ? (
+                    <div>
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            marginBottom: '24px'
+                        }}>
+                            <h2 style={{
+                                fontSize: '20px',
+                                fontWeight: 600,
+                                margin: 0
+                            }}>
+                                {results.length} Results
+                            </h2>
+                        </div>
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+                            gap: '24px'
+                        }}>
+                            {results.map((product, idx) => (
+                                <ProductCard
+                                    key={idx}
+                                    product={product}
+                                    theme={theme}
+                                    isDark={isDark}
+                                />
+                            ))}
+                        </div>
+                    </div>
+                ) : !loading && query && (
+                    <EmptyState theme={theme} />
+                )}
+            </main>
+        </div>
+    );
+}
+
+function ProductCard({ product, theme, isDark }) {
+    const [imageLoaded, setImageLoaded] = useState(false);
+
+    return (
+        <div style={{
+            background: theme.surface,
+            border: `1px solid ${theme.border}`,
+            borderRadius: '16px',
+            overflow: 'hidden',
+            transition: 'all 0.3s ease',
+            cursor: 'pointer'
+        }}>
+            {/* Image */}
+            <div style={{
+                width: '100%',
+                height: '280px',
+                background: theme.bg,
+                position: 'relative',
+                overflow: 'hidden'
+            }}>
+                <img
+                    src={product.raw?.images?.[0]?.hi_res}
+                    alt={product.title}
+                    style={{
+                        width: '100%',
+                        height: '100%',
+                        objectFit: 'cover',
+                        opacity: imageLoaded ? 1 : 0,
+                        transition: 'all 0.3s ease'
+                    }}
+                    onLoad={() => setImageLoaded(true)}
+                />
+                {!imageLoaded && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        color: theme.textTertiary
+                    }}>
+                        Loading...
+                    </div>
+                )}
+
+                {/* Match Score Badge */}
+                {product.score && (
+                    <div style={{
+                        position: 'absolute',
+                        top: '12px',
+                        right: '12px',
+                        background: 'rgba(0, 0, 0, 0.7)',
+                        backdropFilter: 'blur(10px)',
+                        padding: '6px 12px',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                        fontWeight: 600,
+                        color: '#fff'
+                    }}>
+                        {(product.score * 100).toFixed(0)}% Match
+                    </div>
+                )}
+            </div>
+
+            {/* Content */}
+            <div style={{ padding: '20px' }}>
                 <h3 style={{
+                    fontSize: '15px',
                     fontWeight: 600,
-                    fontSize: isMobile ? '14px' : '16px',
-                    marginBottom: isMobile ? '10px' : '12px',
-                    color: currentTheme.textPrimary,
+                    marginBottom: '8px',
                     lineHeight: 1.4,
                     display: '-webkit-box',
                     WebkitLineClamp: 2,
                     WebkitBoxOrient: 'vertical',
                     overflow: 'hidden',
-                    minHeight: isMobile ? '40px' : '44px'
+                    minHeight: '42px'
                 }}>
-                    {product.title || product.raw?.title || 'No title available'}
+                    {product.title}
                 </h3>
 
-                {/* Price and Rating */}
+                {product.raw?.brand && (
+                    <div style={{
+                        fontSize: '12px',
+                        color: theme.textTertiary,
+                        marginBottom: '12px'
+                    }}>
+                        {product.raw.brand}
+                    </div>
+                )}
+
                 <div style={{
                     display: 'flex',
-                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    marginBottom: isMobile ? '12px' : '16px',
-                    flexWrap: 'wrap',
-                    gap: '8px'
+                    justifyContent: 'space-between',
+                    marginBottom: '12px'
                 }}>
-                    {(product.price || product.raw?.price) && (
-                        <div style={{
-                            color: '#10b981',
-                            fontWeight: 700,
-                            fontSize: isMobile ? '18px' : '20px',
-                            background: 'rgba(16, 185, 129, 0.1)',
-                            padding: '4px 10px',
-                            borderRadius: '8px',
-                            whiteSpace: 'nowrap'
-                        }}>
-                            ${product.price || product.raw?.price}
-                        </div>
-                    )}
-                    {(product.rating || product.raw?.average_rating) && (
+                    <div style={{
+                        fontSize: '20px',
+                        fontWeight: 700,
+                        color: theme.success
+                    }}>
+                        ${product.price}
+                    </div>
+
+                    {product.rating && (
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '4px',
-                            color: '#f59e0b',
-                            fontWeight: 600,
-                            background: 'rgba(245, 158, 11, 0.1)',
-                            padding: '4px 10px',
-                            borderRadius: '8px',
-                            whiteSpace: 'nowrap'
+                            fontSize: '13px',
+                            fontWeight: 500
                         }}>
-                            <span>⭐</span>
-                            <span>{product.rating || product.raw?.average_rating}</span>
+                            <Star size={14} style={{ color: theme.warning, fill: theme.warning }} />
+                            <span>{product.rating}</span>
                         </div>
                     )}
                 </div>
-
-                {/* Match Score */}
-                {product.score !== undefined && (
-                    <div style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        background: currentTheme.accentSolid,
-                        color: isDarkMode ? '#c7d2fe' : '#4f46e5',
-                        padding: '4px 10px',
-                        borderRadius: '20px',
-                        fontSize: isMobile ? '11px' : '12px',
-                        fontWeight: 600,
-                        marginBottom: '12px',
-                        border: `1px solid ${currentTheme.border}`
-                    }}>
-                        <span>🎯</span>
-                        <span>{(product.score * 100).toFixed(1)}% Match</span>
-                    </div>
-                )}
             </div>
         </div>
-    )
+    );
+}
+
+function EmptyState({ theme }) {
+    return (
+        <div style={{
+            textAlign: 'center',
+            padding: '80px 20px',
+            color: theme.textTertiary
+        }}>
+            <Search size={48} style={{ marginBottom: '16px', opacity: 0.3 }} />
+            <h3 style={{
+                fontSize: '18px',
+                fontWeight: 600,
+                color: theme.textSecondary,
+                marginBottom: '8px'
+            }}>
+                No results found
+            </h3>
+            <p style={{ fontSize: '14px' }}>
+                Try adjusting your search or filters
+            </p>
+        </div>
+    );
 }

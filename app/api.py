@@ -13,21 +13,6 @@ class Query(BaseModel):
     top_k: int = 6
     rerank: bool = False
 
-# @app.post("/api/recommend")
-# def recommend(query: Query):
-#     try:
-#         candidates = search(query.q, query.top_k)
-#     except Exception as e:
-#         raise HTTPException(status_code=500, detail=str(e))
-#     if query.rerank:
-#         try:
-#             from app.reranker import rerank_and_explain
-#             reranked = rerank_and_explain(query.q, candidates, max_results=query.top_k)
-#             return {"query": query.q, "results": reranked}
-#         except Exception as e:
-#             return {"query": query.q, "warning": f"rerank failed: {e}", "results": candidates}
-#     return {"query": query.q, "results": candidates}
-
 @app.post("/api/recommend")
 def recommend(query: Query):
     try:
